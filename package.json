@@ -1,0 +1,10 @@
+{
+  "name": "ai-math-solver",
+  "version": "1.0.0",
+  "description": "AI agent with file memory to solve optimization problems via GitHub Actions",
+  "main": "solver.js",
+  "scripts": {
+    "start": "node solver.js"
+  },
+  "dependencies": {}
+}
