@@ -53,13 +53,15 @@ const HEADERS = dataset.headers;
 // Detectar automáticamente qué recursos deben controlarse (todas las columnas numéricas excepto 'value')
 const RESOURCE_KEYS = HEADERS.filter(h => h !== 'id' && h !== 'name' && h !== 'value');
 
-// Generar límites automáticos basados en la media aritmética de los elementos
-// Fórmula: Media del recurso * (Número total de elementos * 0.5) -> Capacidad para alojar ~la mitad de los ítems en promedio
+// 1. Factor de proporción dinámico según el tamaño del CSV (se adapta entre 0.3 y 0.7)
+const dynamicFactor = Math.max(0.3, Math.min(0.7, 0.7 - (ITEMS.length * 0.005)));
+
+// 2. Generar límites automáticos basados en la media aritmética y el factor dinámico
 const LIMITS = {};
 RESOURCE_KEYS.forEach(key => {
   const totalSum = ITEMS.reduce((acc, item) => acc + (item[key] || 0), 0);
   const arithmeticMean = totalSum / ITEMS.length;
-  LIMITS[key] = Math.round(arithmeticMean * (ITEMS.length * 0.5));
+  LIMITS[key] = Math.round(arithmeticMean * (ITEMS.length * dynamicFactor));
 });
 
 // Cargar o inicializar la memoria persistente
@@ -99,7 +101,7 @@ function evaluate(individual) {
     }
   }
 
-  // Comprobar si se viola cualquier límite basado en la media
+  // Comprobar si se viola cualquier límite basado en la media y el factor dinámico
   for (const key of RESOURCE_KEYS) {
     if (LIMITS[key] !== undefined && totals[key] > LIMITS[key]) {
       return { score: 0, resourcesUsed: totals, valid: false };
@@ -138,6 +140,7 @@ function runEvolution() {
 
   console.log(`[AI] Resumed at Gen ${memory.generation}. Best Score from CSV dataset: ${memory.bestScore}`);
   console.log(`[AI] Dynamic Resources Tracked: [${RESOURCE_KEYS.join(', ')}]`);
+  console.log(`[AI] Dataset Size: ${ITEMS.length} items | Auto-Calculated Dynamic Factor: ${dynamicFactor.toFixed(3)}`);
   console.log(`[AI] Mean-Based Auto-Calculated Limits:`, LIMITS);
 
   for (let gen = 0; gen < GENERATIONS_PER_RUN; gen++) {
