@@ -13,7 +13,7 @@ const MUTATION_RATE = 0.1; // Ligeramente mayor en continuo para explorar mejor 
 // ==========================================
 const HARD_LIMITS = {
   // budget: 50000,
-  // weight: 24000
+  weight: 300
 };
 
 // Función para leer y parsear el archivo CSV de forma dinámica
