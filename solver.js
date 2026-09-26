@@ -4,14 +4,6 @@ const path = require('path');
 const MEMORY_PATH = path.join(__dirname, 'memory.txt');
 const CSV_PATH = path.join(__dirname, 'input_data.csv');
 
-// Límites máximos permitidos para cada recurso dinámico detectado en el CSV.
-// Puedes añadir o quitar límites aquí según las columnas que pongas en tu CSV.
-const LIMITS = {
-  weight: 350,
-  volume: 120,    // Si tu CSV tiene esta columna, se validará automáticamente
-  budget: 50000   // Si tu CSV tiene esta columna, se validará automáticamente
-};
-
 const POPULATION_SIZE = 80;
 const GENERATIONS_PER_RUN = 40;
 const MUTATION_RATE = 0.04;
@@ -28,7 +20,7 @@ function loadCSVData() {
     throw new Error('input_data.csv is empty or missing data rows.');
   }
 
-  // Extraer las cabeceras de la primera línea (ej: id,name,weight,value,volume)
+  // Extraer las cabeceras de la primera línea
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
   const items = [];
 
@@ -43,7 +35,6 @@ function loadCSVData() {
       const header = headers[j];
       const val = parts[j] !== undefined ? parts[j].trim() : '';
       
-      // 'id' y 'name' se guardan como texto/identificadores, el resto se convierte en número
       if (header === 'id' || header === 'name') {
         item[header] = val;
       } else {
@@ -61,6 +52,13 @@ const HEADERS = dataset.headers;
 
 // Detectar automáticamente qué recursos deben controlarse (todas las columnas numéricas excepto 'value')
 const RESOURCE_KEYS = HEADERS.filter(h => h !== 'id' && h !== 'name' && h !== 'value');
+
+// Generar los límites automáticamente calculando el sumatorio total de cada columna en el CSV
+const LIMITS = {};
+RESOURCE_KEYS.forEach(key => {
+  const totalSum = ITEMS.reduce((acc, item) => acc + (item[key] || 0), 0);
+  LIMITS[key] = totalSum; // El límite se fija automáticamente al sumatorio total de la variable
+});
 
 // Cargar o inicializar la memoria persistente
 function loadMemory() {
@@ -86,7 +84,6 @@ function saveMemory(data) {
 
 // Función de evaluación dinámica para múltiples recursos con penalización estricta
 function evaluate(individual) {
-  // Inicializar contadores de consumo para cada recurso detectado
   let totals = {};
   RESOURCE_KEYS.forEach(key => { totals[key] = 0; });
   let totalValue = 0;
@@ -100,7 +97,7 @@ function evaluate(individual) {
     }
   }
 
-  // Comprobar si se violaCUALQUIER límite configurado en LIMITS
+  // Comprobar si se viola cualquier límite dinámico generado
   for (const key of RESOURCE_KEYS) {
     if (LIMITS[key] !== undefined && totals[key] > LIMITS[key]) {
       return { score: 0, resourcesUsed: totals, valid: false };
@@ -139,6 +136,7 @@ function runEvolution() {
 
   console.log(`[AI] Resumed at Gen ${memory.generation}. Best Score from CSV dataset: ${memory.bestScore}`);
   console.log(`[AI] Dynamic Resources Tracked: [${RESOURCE_KEYS.join(', ')}]`);
+  console.log(`[AI] Auto-Generated Limits based on CSV sums:`, LIMITS);
 
   for (let gen = 0; gen < GENERATIONS_PER_RUN; gen++) {
     memory.generation++;
@@ -152,9 +150,8 @@ function runEvolution() {
         memory.bestResourcesUsed = evaluationResults[i].resourcesUsed;
         memory.bestCombination = [...population[i]];
         
-        // Formatear el consumo de recursos para los logs de forma dinámica
         const usageLog = Object.entries(memory.bestResourcesUsed)
-          .map(([k, v]) => `${k}: ${v}/${LIMITS[k] || '∞'}`)
+          .map(([k, v]) => `${k}: ${v}/${LIMITS[k]}`)
           .join(' | ');
 
         console.log(`[AI] Gen ${memory.generation}: 🚀 New Record! Value: ${memory.bestScore} | ${usageLog}`);
