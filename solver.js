@@ -53,11 +53,12 @@ const HEADERS = dataset.headers;
 // Detectar automáticamente qué recursos deben controlarse (todas las columnas numéricas excepto 'value')
 const RESOURCE_KEYS = HEADERS.filter(h => h !== 'id' && h !== 'name' && h !== 'value');
 
-// Generar los límites automáticamente calculando el sumatorio total de cada columna en el CSV
+// Generar límites automáticos inteligentes mediante una heurística matemática (60% del sumatorio total)
+// Esto evita que el límite sea tan grande que permita cogerlo todo, forzando un reto de optimización real.
 const LIMITS = {};
 RESOURCE_KEYS.forEach(key => {
   const totalSum = ITEMS.reduce((acc, item) => acc + (item[key] || 0), 0);
-  LIMITS[key] = totalSum; // El límite se fija automáticamente al sumatorio total de la variable
+  LIMITS[key] = Math.round(totalSum * 0.60); // 60% de capacidad disponible por defecto
 });
 
 // Cargar o inicializar la memoria persistente
@@ -97,7 +98,7 @@ function evaluate(individual) {
     }
   }
 
-  // Comprobar si se viola cualquier límite dinámico generado
+  // Comprobar si se viola cualquier límite dinámico inteligente
   for (const key of RESOURCE_KEYS) {
     if (LIMITS[key] !== undefined && totals[key] > LIMITS[key]) {
       return { score: 0, resourcesUsed: totals, valid: false };
@@ -136,7 +137,7 @@ function runEvolution() {
 
   console.log(`[AI] Resumed at Gen ${memory.generation}. Best Score from CSV dataset: ${memory.bestScore}`);
   console.log(`[AI] Dynamic Resources Tracked: [${RESOURCE_KEYS.join(', ')}]`);
-  console.log(`[AI] Auto-Generated Limits based on CSV sums:`, LIMITS);
+  console.log(`[AI] Smart Auto-Calculated Limits (60% heuristic):`, LIMITS);
 
   for (let gen = 0; gen < GENERATIONS_PER_RUN; gen++) {
     memory.generation++;
