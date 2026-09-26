@@ -86,7 +86,7 @@ function saveMemory(data) {
   fs.writeFileSync(MEMORY_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// Función de evaluación dinámica para múltiples recursos con penalización estricta
+// Función de evaluación con penalización progresiva (Soft Constraints)
 function evaluate(individual) {
   let totals = {};
   RESOURCE_KEYS.forEach(key => { totals[key] = 0; });
@@ -101,14 +101,25 @@ function evaluate(individual) {
     }
   }
 
-  // Comprobar si se viola cualquier límite basado en la media y el factor dinámico
+  let penaltyMultiplier = 1.0;
+  let isValid = true;
+
+  // Comprobar si se viola algún límite y aplicar penalización proporcional al exceso
   for (const key of RESOURCE_KEYS) {
     if (LIMITS[key] !== undefined && totals[key] > LIMITS[key]) {
-      return { score: 0, resourcesUsed: totals, valid: false };
+      isValid = false;
+      const excess = totals[key] - LIMITS[key];
+      const excessRatio = excess / LIMITS[key];
+      // Cuanto más se pase del límite, mayor será el factor de reducción de puntuación
+      penaltyMultiplier -= excessRatio * 2.0; 
     }
   }
 
-  return { score: totalValue, resourcesUsed: totals, valid: true };
+  // Asegurar que la penalización no baje del 0 absoluto
+  penaltyMultiplier = Math.max(0, penaltyMultiplier);
+  const finalScore = Math.round(totalValue * penaltyMultiplier);
+
+  return { score: finalScore, resourcesUsed: totals, valid: isValid && penaltyMultiplier > 0 };
 }
 
 // Selección por Torneo binario
