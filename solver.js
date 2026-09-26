@@ -8,6 +8,16 @@ const POPULATION_SIZE = 80;
 const GENERATIONS_PER_RUN = 40;
 const MUTATION_RATE = 0.04;
 
+// ==========================================
+// CONFIGURACIÓN HÍBRIDA DE LÍMITES DE NEGOCIO
+// ==========================================
+// Si necesitas un límite estricto del mundo real (ej. presupuesto máximo, peso legal), 
+// defínelo aquí. Si lo dejas vacío ({}), el motor usará los límites dinámicos estadísticos.
+const HARD_LIMITS = {
+  // budget: 50000,
+  // weight: 24000
+};
+
 // Función para leer y parsear el archivo CSV de forma dinámica
 function loadCSVData() {
   if (!fs.existsSync(CSV_PATH)) {
@@ -56,12 +66,18 @@ const RESOURCE_KEYS = HEADERS.filter(h => h !== 'id' && h !== 'name' && h !== 'v
 // 1. Factor de proporción dinámico según el tamaño del CSV (se adapta entre 0.3 y 0.7)
 const dynamicFactor = Math.max(0.3, Math.min(0.7, 0.7 - (ITEMS.length * 0.005)));
 
-// 2. Generar límites automáticos basados en la media aritmética y el factor dinámico
+// 2. Sistema híbrido: Generar límites usando reglas de negocio o cálculo automático estadístico
 const LIMITS = {};
 RESOURCE_KEYS.forEach(key => {
-  const totalSum = ITEMS.reduce((acc, item) => acc + (item[key] || 0), 0);
-  const arithmeticMean = totalSum / ITEMS.length;
-  LIMITS[key] = Math.round(arithmeticMean * (ITEMS.length * dynamicFactor));
+  if (HARD_LIMITS[key] !== undefined) {
+    // Prioridad absoluta al límite estricto del mundo real si se define
+    LIMITS[key] = HARD_LIMITS[key];
+  } else {
+    // Si no hay límite de negocio, se calcula automáticamente usando la media y el factor dinámico
+    const totalSum = ITEMS.reduce((acc, item) => acc + (item[key] || 0), 0);
+    const arithmeticMean = totalSum / ITEMS.length;
+    LIMITS[key] = Math.round(arithmeticMean * (ITEMS.length * dynamicFactor));
+  }
 });
 
 // Cargar o inicializar la memoria persistente
@@ -152,7 +168,7 @@ function runEvolution() {
   console.log(`[AI] Resumed at Gen ${memory.generation}. Best Score from CSV dataset: ${memory.bestScore}`);
   console.log(`[AI] Dynamic Resources Tracked: [${RESOURCE_KEYS.join(', ')}]`);
   console.log(`[AI] Dataset Size: ${ITEMS.length} items | Auto-Calculated Dynamic Factor: ${dynamicFactor.toFixed(3)}`);
-  console.log(`[AI] Mean-Based Auto-Calculated Limits:`, LIMITS);
+  console.log(`[AI] Applied Limits (Business Hard Limits or Auto-Calculated):`, LIMITS);
 
   for (let gen = 0; gen < GENERATIONS_PER_RUN; gen++) {
     memory.generation++;
