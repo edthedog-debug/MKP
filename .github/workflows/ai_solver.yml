@@ -1,4 +1,4 @@
-name: Run Genetic AI Solver
+name: Run CSV-Driven AI Solver
 
 on:
   schedule:
@@ -20,13 +20,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run Genetic Algorithm Solver
+      - name: Run Optimization Agent
         run: node solver.js
 
       - name: Commit and push memory updates
         run: |
-          git config --global user.name 'AI Genetic Bot'
+          git config --global user.name 'AI Dataset Bot'
           git config --global user.email 'bot@users.noreply.github.com'
           git add memory.txt
-          git commit -m "AI evolution update: memory and population refined [skip ci]" || exit 0
+          git commit -m "AI evolution update: processed CSV dataset successfully [skip ci]" || exit 0
           git push
