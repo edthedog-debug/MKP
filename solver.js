@@ -6,13 +6,11 @@ const CSV_PATH = path.join(__dirname, 'input_data.csv');
 
 const POPULATION_SIZE = 80;
 const GENERATIONS_PER_RUN = 40;
-const MUTATION_RATE = 0.04;
+const MUTATION_RATE = 0.1; // Ligeramente mayor en continuo para explorar mejor el espacio
 
 // ==========================================
 // CONFIGURACIÓN HÍBRIDA DE LÍMITES DE NEGOCIO
 // ==========================================
-// Si necesitas un límite estricto del mundo real (ej. presupuesto máximo, peso legal), 
-// defínelo aquí. Si lo dejas vacío ({}), el motor usará los límites dinámicos estadísticos.
 const HARD_LIMITS = {
   // budget: 50000,
   // weight: 24000
@@ -30,11 +28,9 @@ function loadCSVData() {
     throw new Error('input_data.csv is empty or missing data rows.');
   }
 
-  // Extraer las cabeceras de la primera línea
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
   const items = [];
 
-  // Parsear las filas restantes de forma dinámica
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
@@ -60,33 +56,40 @@ const dataset = loadCSVData();
 const ITEMS = dataset.items;
 const HEADERS = dataset.headers;
 
-// Detectar automáticamente qué recursos deben controlarse (todas las columnas numéricas excepto 'value')
 const RESOURCE_KEYS = HEADERS.filter(h => h !== 'id' && h !== 'name' && h !== 'value');
 
-// 1. Factor de proporción dinámico según el tamaño del CSV (se adapta entre 0.3 y 0.7)
 const dynamicFactor = Math.max(0.3, Math.min(0.7, 0.7 - (ITEMS.length * 0.005)));
 
-// 2. Sistema híbrido: Generar límites usando reglas de negocio o cálculo automático estadístico
 const LIMITS = {};
 RESOURCE_KEYS.forEach(key => {
   if (HARD_LIMITS[key] !== undefined) {
-    // Prioridad absoluta al límite estricto del mundo real si se define
     LIMITS[key] = HARD_LIMITS[key];
   } else {
-    // Si no hay límite de negocio, se calcula automáticamente usando la media y el factor dinámico
     const totalSum = ITEMS.reduce((acc, item) => acc + (item[key] || 0), 0);
     const arithmeticMean = totalSum / ITEMS.length;
     LIMITS[key] = Math.round(arithmeticMean * (ITEMS.length * dynamicFactor));
   }
 });
 
-// Cargar o inicializar la memoria persistente
+// Función clave: Asegura que todos los pesos sumen exactamente 1.0 (100%)
+function normalizeWeights(weights) {
+  const sum = weights.reduce((acc, val) => acc + val, 0);
+  if (sum === 0) {
+    // Si todos son cero por azar, repartir equitativamente
+    const equalVal = 1 / weights.length;
+    return weights.map(() => equalVal);
+  }
+  return weights.map(val => val / sum);
+}
+
+// Cargar o inicializar la memoria persistente con pesos continuos normalizados
 function loadMemory() {
   if (!fs.existsSync(MEMORY_PATH)) {
-    console.log('[AI] Initializing new evolutionary population from dynamic CSV dataset...');
-    const initialPopulation = Array.from({ length: POPULATION_SIZE }, () =>
-      ITEMS.map(() => (Math.random() > 0.4 ? 1 : 0))
-    );
+    console.log('[AI] Initializing new continuous evolutionary population of weights...');
+    const initialPopulation = Array.from({ length: POPULATION_SIZE }, () => {
+      const rawWeights = ITEMS.map(() => Math.random());
+      return normalizeWeights(rawWeights);
+    });
     return { 
       generation: 0, 
       bestScore: 0, 
@@ -102,43 +105,47 @@ function saveMemory(data) {
   fs.writeFileSync(MEMORY_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// Función de evaluación con penalización progresiva (Soft Constraints)
+// Función de evaluación adaptada a porcentajes/pesos continuos
 function evaluate(individual) {
   let totals = {};
   RESOURCE_KEYS.forEach(key => { totals[key] = 0; });
   let totalValue = 0;
 
+  // En modelo continuo, el peso determina la proporción de cada recurso y valor aportado
   for (let i = 0; i < individual.length; i++) {
-    if (individual[i] === 1) {
+    const weight = individual[i];
+    if (weight > 0) {
       RESOURCE_KEYS.forEach(key => {
-        totals[key] += ITEMS[i][key] || 0;
+        totals[key] += (ITEMS[i][key] || 0) * weight;
       });
-      totalValue += ITEMS[i].value || 0;
+      totalValue += (ITEMS[i].value || 0) * weight;
     }
   }
 
   let penaltyMultiplier = 1.0;
   let isValid = true;
 
-  // Comprobar si se viola algún límite y aplicar penalización proporcional al exceso
   for (const key of RESOURCE_KEYS) {
     if (LIMITS[key] !== undefined && totals[key] > LIMITS[key]) {
       isValid = false;
       const excess = totals[key] - LIMITS[key];
       const excessRatio = excess / LIMITS[key];
-      // Cuanto más se pase del límite, mayor será el factor de reducción de puntuación
       penaltyMultiplier -= excessRatio * 2.0; 
     }
   }
 
-  // Asegurar que la penalización no baje del 0 absoluto
   penaltyMultiplier = Math.max(0, penaltyMultiplier);
-  const finalScore = Math.round(totalValue * penaltyMultiplier);
+  // Redondear a 2 decimales para precisión financiera/cuantitativa
+  const finalScore = Math.round((totalValue * penaltyMultiplier) * 100) / 100;
+
+  // Redondear recursos usados para mejor lectura en consola
+  Object.keys(totals).forEach(k => {
+    totals[k] = Math.round(totals[k] * 100) / 100;
+  });
 
   return { score: finalScore, resourcesUsed: totals, valid: isValid && penaltyMultiplier > 0 };
 }
 
-// Selección por Torneo binario
 function tournamentSelection(population, scores) {
   const k = 3;
   let bestIdx = Math.floor(Math.random() * population.length);
@@ -151,13 +158,23 @@ function tournamentSelection(population, scores) {
   return population[bestIdx];
 }
 
+// Cruzamiento aritmético para vectores continuos
 function crossover(parent1, parent2) {
-  const point = Math.floor(Math.random() * parent1.length);
-  return [...parent1.slice(0, point), ...parent2.slice(point)];
+  const alpha = Math.random();
+  const child = parent1.map((p1Val, i) => alpha * p1Val + (1 - alpha) * parent2[i]);
+  return normalizeWeights(child);
 }
 
+// Mutación continua: aplica pequeños desvíos aleatorios y vuelve a normalizar
 function mutate(individual) {
-  return individual.map(gene => (Math.random() < MUTATION_RATE ? 1 - gene : gene));
+  const mutated = individual.map(gene => {
+    if (Math.random() < MUTATION_RATE) {
+      const delta = (Math.random() - 0.5) * 0.2; // Desvío de -0.1 a +0.1
+      return Math.max(0, gene + delta); // Evitar valores negativos
+    }
+    return gene;
+  });
+  return normalizeWeights(mutated);
 }
 
 // Ciclo principal de evolución autónoma
@@ -165,10 +182,10 @@ function runEvolution() {
   let memory = loadMemory();
   let population = memory.population;
 
-  console.log(`[AI] Resumed at Gen ${memory.generation}. Best Score from CSV dataset: ${memory.bestScore}`);
-  console.log(`[AI] Dynamic Resources Tracked: [${RESOURCE_KEYS.join(', ')}]`);
-  console.log(`[AI] Dataset Size: ${ITEMS.length} items | Auto-Calculated Dynamic Factor: ${dynamicFactor.toFixed(3)}`);
-  console.log(`[AI] Applied Limits (Business Hard Limits or Auto-Calculated):`, LIMITS);
+  console.log(`[AI-Continuous] Resumed at Gen ${memory.generation}. Best Portfolio Score: ${memory.bestScore}`);
+  console.log(`[AI-Continuous] Dynamic Resources Tracked: [${RESOURCE_KEYS.join(', ')}]`);
+  console.log(`[AI-Continuous] Dataset Size: ${ITEMS.length} items | Auto-Calculated Dynamic Factor: ${dynamicFactor.toFixed(3)}`);
+  console.log(`[AI-Continuous] Applied Limits:`, LIMITS);
 
   for (let gen = 0; gen < GENERATIONS_PER_RUN; gen++) {
     memory.generation++;
@@ -186,7 +203,7 @@ function runEvolution() {
           .map(([k, v]) => `${k}: ${v}/${LIMITS[k]}`)
           .join(' | ');
 
-        console.log(`[AI] Gen ${memory.generation}: 🚀 New Record! Value: ${memory.bestScore} | ${usageLog}`);
+        console.log(`[AI-Continuous] Gen ${memory.generation}: 🚀 New Portfolio Record! Score: ${memory.bestScore} | ${usageLog}`);
       }
     }
 
@@ -207,7 +224,7 @@ function runEvolution() {
 
   memory.population = population;
   saveMemory(memory);
-  console.log(`[AI] Batch finished. Generation reached: ${memory.generation}. Historic Best Score: ${memory.bestScore}`);
+  console.log(`[AI-Continuous] Batch finished. Gen reached: ${memory.generation}. Historic Best Score: ${memory.bestScore}`);
 }
 
 runEvolution();
