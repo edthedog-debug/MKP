@@ -3,34 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional AI Optimization Dashboard</title>
+    <title>Autonomous AI Optimization Engine</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; }
-        .container { max-width: 700px; margin: auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        h1 { color: #38bdf8; font-size: 24px; margin-bottom: 5px; }
+        :root { --bg: #0f172a; --card-bg: #1e293b; --border: #334155; --text: #f8fafc; --accent: #38bdf8; --success: #4ade80; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 40px 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: auto; }
+        .header { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-bottom: 25px; }
+        h1 { color: var(--accent); font-size: 26px; margin-bottom: 5px; }
         p { color: #94a3b8; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
-        .card { background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; }
-        .metric { font-size: 32px; font-weight: bold; color: #4ade80; margin-top: 10px; }
-        .subtext { font-size: 14px; color: #64748b; margin-top: 5px; }
+        .card { background: var(--bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border); }
+        .metric { font-size: 32px; font-weight: bold; color: var(--success); margin-top: 10px; }
+        .btn { display: inline-block; background: #0284c7; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 15px; transition: background 0.2s; }
+        .btn:hover { background: #0369a1; }
+        .section { background: var(--card-bg); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-top: 25px; }
+        h2 { font-size: 20px; color: var(--accent); margin-bottom: 15px; }
+        ul { padding-left: 20px; color: #94a3b8; }
+        li { margin-bottom: 10px; }
+        li strong { color: var(--text); }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Autonomous Genetic AI Solver</h1>
-        <p>Solving complex multi-variable optimization problems using native evolutionary metaheuristics.</p>
-        
-        <div class="grid">
-            <div class="card">
-                <h3>Best Optimal Score</h3>
-                <div class="metric" id="score">Loading...</div>
-                <div class="subtext">Maximized asset value</div>
+        <!-- Panel de Métricas de la IA -->
+        <div class="header">
+            <h1>Autonomous Genetic AI Solver</h1>
+            <p>Continuous operational optimization powered by automated background GitHub Actions and local file memory.</p>
+            
+            <div class="grid">
+                <div class="card">
+                    <h3>Best Optimal Value</h3>
+                    <div class="metric" id="score">Loading...</div>
+                    <p style="font-size: 13px; margin-top: 5px;">Maximized economic utility from CSV</p>
+                </div>
+                <div class="card">
+                    <h3>Generations Evolved</h3>
+                    <div class="metric" id="generation" style="color: var(--accent);">Loading...</div>
+                    <p style="font-size: 13px; margin-top: 5px;">Autonomous evolution cycles</p>
+                </div>
             </div>
-            <div class="card">
-                <h3>Generations Evolved</h3>
-                <div class="metric" id="generation" style="color: #38bdf8;">Loading...</div>
-                <div class="subtext">Cumulative evolutionary cycles</div>
-            </div>
+
+            <!-- Botón de descarga de plantilla -->
+            <a href="input_data.csv" download="input_data.csv" class="btn">📥 Download Official CSV Dataset Template</a>
+        </div>
+
+        <!-- Casos de Uso Profesionales -->
+        <div class="section">
+            <h2>Professional Real-World Use Cases</h2>
+            <ul>
+                <li><strong>Supply Chain & Logistics:</strong> Optimizing container cargo allocation where individual packages have fixed volumetric weights and financial delivery priorities under strict truck payload capacities.</li>
+                <li><strong>Corporate Financial Portfolios:</strong> Selecting high-yield capital investment projects and corporate ventures constrained by an strict maximum annual budget limit.</li>
+                <li><strong>Cloud Infrastructure Cost Reduction:</strong> Deploying microservices and virtual machine workloads across physical server nodes to maximize processing power without exceeding strict hardware memory limits.</li>
+            </ul>
         </div>
     </div>
 
