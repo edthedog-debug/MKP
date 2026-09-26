@@ -4,50 +4,75 @@ const path = require('path');
 const MEMORY_PATH = path.join(__dirname, 'memory.txt');
 const CSV_PATH = path.join(__dirname, 'input_data.csv');
 
-// Capacidad máxima de recursos permitida para esta instancia
-const CAPACITY = 350;
+// Límites máximos permitidos para cada recurso dinámico detectado en el CSV.
+// Puedes añadir o quitar límites aquí según las columnas que pongas en tu CSV.
+const LIMITS = {
+  weight: 350,
+  volume: 120,    // Si tu CSV tiene esta columna, se validará automáticamente
+  budget: 50000   // Si tu CSV tiene esta columna, se validará automáticamente
+};
 
 const POPULATION_SIZE = 80;
 const GENERATIONS_PER_RUN = 40;
 const MUTATION_RATE = 0.04;
 
-// Función para leer y parsear el archivo CSV de forma nativa
+// Función para leer y parsear el archivo CSV de forma dinámica
 function loadCSVData() {
   if (!fs.existsSync(CSV_PATH)) {
     throw new Error('input_data.csv not found! Please provide a valid dataset.');
   }
   const fileContent = fs.readFileSync(CSV_PATH, 'utf8');
   const lines = fileContent.trim().split('\n');
+  
+  if (lines.length < 2) {
+    throw new Error('input_data.csv is empty or missing data rows.');
+  }
+
+  // Extraer las cabeceras de la primera línea (ej: id,name,weight,value,volume)
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
   const items = [];
 
-  // Omitir la cabecera (linea 0)
+  // Parsear las filas restantes de forma dinámica
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
     const parts = line.split(',');
-    items.push({
-      id: parts[0],
-      name: parts[1],
-      weight: parseFloat(parts[2]),
-      value: parseFloat(parts[3])
-    });
+    
+    const item = {};
+    for (let j = 0; j < headers.length; j++) {
+      const header = headers[j];
+      const val = parts[j] !== undefined ? parts[j].trim() : '';
+      
+      // 'id' y 'name' se guardan como texto/identificadores, el resto se convierte en número
+      if (header === 'id' || header === 'name') {
+        item[header] = val;
+      } else {
+        item[header] = parseFloat(val) || 0;
+      }
+    }
+    items.push(item);
   }
-  return items;
+  return { items, headers };
 }
 
-const ITEMS = loadCSVData();
+const dataset = loadCSVData();
+const ITEMS = dataset.items;
+const HEADERS = dataset.headers;
+
+// Detectar automáticamente qué recursos deben controlarse (todas las columnas numéricas excepto 'value')
+const RESOURCE_KEYS = HEADERS.filter(h => h !== 'id' && h !== 'name' && h !== 'value');
 
 // Cargar o inicializar la memoria persistente
 function loadMemory() {
   if (!fs.existsSync(MEMORY_PATH)) {
-    console.log('[AI] Initializing new evolutionary population from CSV dataset...');
+    console.log('[AI] Initializing new evolutionary population from dynamic CSV dataset...');
     const initialPopulation = Array.from({ length: POPULATION_SIZE }, () =>
       ITEMS.map(() => (Math.random() > 0.4 ? 1 : 0))
     );
     return { 
       generation: 0, 
       bestScore: 0, 
-      bestWeight: 0,
+      bestResourcesUsed: {},
       bestCombination: [], 
       population: initialPopulation 
     };
@@ -59,20 +84,30 @@ function saveMemory(data) {
   fs.writeFileSync(MEMORY_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// Función de evaluación con penalización estricta por superar la capacidad
+// Función de evaluación dinámica para múltiples recursos con penalización estricta
 function evaluate(individual) {
-  let totalWeight = 0;
+  // Inicializar contadores de consumo para cada recurso detectado
+  let totals = {};
+  RESOURCE_KEYS.forEach(key => { totals[key] = 0; });
   let totalValue = 0;
 
   for (let i = 0; i < individual.length; i++) {
     if (individual[i] === 1) {
-      totalWeight += ITEMS[i].weight;
-      totalValue += ITEMS[i].value;
+      RESOURCE_KEYS.forEach(key => {
+        totals[key] += ITEMS[i][key] || 0;
+      });
+      totalValue += ITEMS[i].value || 0;
     }
   }
 
-  if (totalWeight > CAPACITY) return { score: 0, weight: totalWeight };
-  return { score: totalValue, weight: totalWeight };
+  // Comprobar si se violaCUALQUIER límite configurado en LIMITS
+  for (const key of RESOURCE_KEYS) {
+    if (LIMITS[key] !== undefined && totals[key] > LIMITS[key]) {
+      return { score: 0, resourcesUsed: totals, valid: false };
+    }
+  }
+
+  return { score: totalValue, resourcesUsed: totals, valid: true };
 }
 
 // Selección por Torneo binario
@@ -103,6 +138,7 @@ function runEvolution() {
   let population = memory.population;
 
   console.log(`[AI] Resumed at Gen ${memory.generation}. Best Score from CSV dataset: ${memory.bestScore}`);
+  console.log(`[AI] Dynamic Resources Tracked: [${RESOURCE_KEYS.join(', ')}]`);
 
   for (let gen = 0; gen < GENERATIONS_PER_RUN; gen++) {
     memory.generation++;
@@ -113,9 +149,15 @@ function runEvolution() {
     for (let i = 0; i < population.length; i++) {
       if (scores[i] > memory.bestScore) {
         memory.bestScore = scores[i];
-        memory.bestWeight = evaluationResults[i].weight;
+        memory.bestResourcesUsed = evaluationResults[i].resourcesUsed;
         memory.bestCombination = [...population[i]];
-        console.log(`[AI] Gen ${memory.generation}: 🚀 New Record! Optimized Value: ${memory.bestScore} | Resource Used: ${memory.bestWeight}/${CAPACITY}`);
+        
+        // Formatear el consumo de recursos para los logs de forma dinámica
+        const usageLog = Object.entries(memory.bestResourcesUsed)
+          .map(([k, v]) => `${k}: ${v}/${LIMITS[k] || '∞'}`)
+          .join(' | ');
+
+        console.log(`[AI] Gen ${memory.generation}: 🚀 New Record! Value: ${memory.bestScore} | ${usageLog}`);
       }
     }
 
