@@ -1,11 +1,16 @@
 id,name,weight,value
-1,Logistics Route Alpha,45,95
-2,Server Cloud Cluster B,30,100
-3,Supply Chain Depot C,65,120
-4,Express Freight Unit D,20,60
-5,Automated Warehouse E,80,200
-6,Distribution Hub F,40,90
-7,Data Center Node G,60,150
-8,Inventory Storage H,15,30
-9,Network Gateway I,25,50
-10,Security Firewall J,35,75
+1,Enterprise Cloud Server Migrations,45,110
+2,Supply Chain Fleet Optimization,60,150
+3,Automated Inventory Audit System,25,70
+4,Data Center Power Redundancy,80,190
+5,Cybersecurity Threat Intelligence,30,85
+6,Customer Support AI Pipeline,40,95
+7,Financial Risk Modeling Module,50,120
+8,High-Speed Logistics Gateway,15,40
+9,API Gateway Load Balancer,20,55
+10,Database Sharding Architecture,55,130
+11,Real-time Telemetry Dashboard,35,90
+12,Automated Backup Protocol,10,30
+13,Edge Computing Node Setup,65,145
+14,Quantum Encryption Module,70,175
+15,Microservices Mesh Refactoring,22,60
