@@ -1,16 +1,15 @@
-name: Run AI Math Solver
+name: Run Genetic AI Solver
 
 on:
   schedule:
-    # Se ejecuta todos los días a las 00:00 y a las 12:00 UTC
     - cron: '0 0,12 * * *'
-  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña Actions de GitHub
+  workflow_dispatch:
 
 jobs:
   solve:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Necesario para hacer commit automático de la memoria
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -21,13 +20,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run Solver Agent
+      - name: Run Genetic Algorithm Solver
         run: node solver.js
 
       - name: Commit and push memory updates
         run: |
-          git config --global user.name 'AI Solver Bot'
+          git config --global user.name 'AI Genetic Bot'
           git config --global user.email 'bot@users.noreply.github.com'
           git add memory.txt
-          git commit -m "AI update: memory refined [skip ci]" || exit 0
+          git commit -m "AI evolution update: memory and population refined [skip ci]" || exit 0
           git push
